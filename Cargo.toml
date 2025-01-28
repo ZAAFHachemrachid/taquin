@@ -1,0 +1,13 @@
+[package]
+name = "taquin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+priority-queue = "2.1.1"
+colored = "2.0"
+ctrlc = "3.4.1"
+
+[[bin]]
+name = "taquin"
+path = "src/main.rs"

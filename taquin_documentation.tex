@@ -1,0 +1,289 @@
+\documentclass[a4paper]{article}
+\usepackage{listings}
+% Define Rust language for listings
+\lstdefinelanguage{Rust}{
+  keywords={
+    self,mut,fn,pub,struct,enum,impl,for,match,if,else,let,return,
+    where,unsafe,trait,pub,use,mod,as,break,box,continue,crate,move,
+    ref,in,type,while,yield,async,await,dyn,abstract,become,final,
+    macro,override,priv,try,typeof,unsized,virtual,loop,const,static
+  },
+  sensitive=true,
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morestring=[b]",
+  morestring=[b]',
+  morekeywords={u8,u16,u32,u64,i8,i16,i32,i64,bool,Vec,String,Option,Some,None}
+}
+\usepackage{color}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\usepackage[a4paper,width=6.5in,top=1in,bottom=1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+
+% Enable better line breaking
+\sloppy
+\emergencystretch=1em
+
+% Define header and footer
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textbf{Taquin Puzzle Solver Documentation}}
+\fancyfoot[C]{\thepage}
+
+% Style section titles
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\Large\itshape}{\thesubsection}{1em}{}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{rustcode}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    language=Rust
+}
+
+\title{Taquin Puzzle Solver Implementation}
+\author{Technical Documentation}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+This document describes the implementation of a Taquin (8-puzzle) solver in Rust. The project implements three different search algorithms to solve the puzzle: A* Search, Breadth-First Search (BFS), and Depth-First Search (DFS). Each algorithm offers different characteristics in terms of solution optimality and resource usage.
+
+\section{Project Structure}
+The project is organized into several modules:
+\begin{itemize}
+    \item \texttt{common/}: Contains the core game logic and board representation
+    \item \texttt{A\_star/}: Implementation of the A* search algorithm
+    \item \texttt{BFS/}: Implementation of the Breadth-First Search
+    \item \texttt{DFS/}: Implementation of the Depth-First Search
+\end{itemize}
+
+\section{Board Implementation}
+\subsection{Data Structure}
+The board is represented by the \texttt{Board} struct and includes a direction enum:
+
+\begin{lstlisting}[style=rustcode]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Board {
+    state: Vec<u8>,
+    blank_pos: usize,
+    size: usize,
+}
+\end{lstlisting}
+
+The implementation includes:
+\begin{itemize}
+    \item A 1D vector representing the puzzle state for better performance
+    \item Tracking of the blank tile position using a single index
+    \item Support for different board sizes (optimized for 3x3)
+    \item Efficient index-based calculations for moves and state transitions
+\end{itemize}
+
+\subsection{Core Functionality}
+Key methods include:
+\begin{itemize}
+    \item \texttt{new()}: Creates a new board from a 2D initial state
+    \item \texttt{is\_goal()}: Checks if the current state matches the goal state
+    \item \texttt{make\_move()}: Executes a move in a given direction
+    \item \texttt{get\_possible\_moves()}: Returns valid moves from the current state
+    \item \texttt{manhattan\_distance()}: Calculates heuristic for A* search
+\end{itemize}
+
+\section{Search Algorithms}
+\subsection{A* Search}
+The A* implementation uses a sophisticated State struct with priority queue ordering:
+
+\begin{lstlisting}[style=rustcode]
+#[derive(Clone, Eq)]
+struct State {
+    state: Vec<u8>,
+    blank_pos: usize,
+    size: usize,
+    path: Vec<Direction>,
+    g_cost: u32, // Cost from start to current node
+    h_cost: u32, // Heuristic cost (Manhattan distance)
+}
+\end{lstlisting}
+
+Key components:
+\begin{itemize}
+    \item Efficient state representation using 1D vector
+    \item Path tracking for move reconstruction
+    \item g\_cost tracking actual path cost
+    \item h\_cost using Manhattan distance heuristic
+    \item Custom ordering implementation for optimal state exploration
+\end{itemize}
+
+The solver implements the Solver trait:
+\begin{lstlisting}[style=rustcode]
+impl Solver for AStarSolver {
+    fn solve(&self, _optimal_length: Option<usize>) -> Option<SolutionInfo>
+}
+\end{lstlisting}
+
+\subsection{Breadth-First Search}
+BFS implementation uses a queue to explore states level by level:
+
+\begin{algorithm}
+\caption{BFS Implementation}
+\begin{algorithmic}[1]
+\State Initialize queue with start state
+\State Initialize visited set
+\While{queue not empty}
+    \State current\_state = queue.pop\_front()
+    \If{current\_state is goal}
+        \Return solution path
+    \EndIf
+    \For{each possible move}
+        \State new\_state = apply move to current\_state
+        \If{new\_state not visited}
+            \State Add new\_state to queue
+            \State Mark new\_state as visited
+        \EndIf
+    \EndFor
+\EndWhile
+\Return no solution
+\end{algorithmic}
+\end{algorithm}
+
+Key features:
+\begin{itemize}
+    \item Guarantees shortest path solution
+    \item Memory intensive but complete
+    \item Compares solution length with A* optimal length
+\end{itemize}
+
+\subsection{Depth-First Search}
+DFS implementation uses recursive exploration with iterative deepening:
+
+\begin{algorithm}
+\caption{DFS Implementation}
+\begin{algorithmic}[1]
+\For{depth\_limit = 1 to 20}
+    \State Clear visited set
+    \State result = DFS\_recursive(start\_state, depth\_limit)
+    \If{result is solution}
+        \Return solution path
+    \EndIf
+\EndFor
+\Return no solution
+\end{algorithmic}
+\end{algorithm}
+
+Key features:
+\begin{itemize}
+    \item Uses iterative deepening to prevent infinite paths
+    \item Memory efficient but may not find optimal solution
+    \item Implements backtracking to explore all possibilities
+\end{itemize}
+
+\section{Algorithm Comparison}
+
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{Algorithm} & \textbf{Optimality} & \textbf{Memory Usage} & \textbf{Speed} \\
+\hline
+A* & Optimal & Medium & Fast \\
+BFS & Optimal & High & Medium \\
+DFS & Not Optimal & Low & Variable \\
+\hline
+\end{tabular}
+
+\section{Testing and Validation}
+The implementation includes comprehensive test coverage:
+\begin{itemize}
+    \item Unit tests for board operations
+    \item Integration tests for each solver
+    \item Tests for different puzzle sizes (2x2, 3x3)
+    \item Edge case testing (already solved puzzles)
+    \item Solution validity verification
+\end{itemize}
+
+Example test cases:
+\begin{lstlisting}[style=rustcode]
+#[test]
+fn test_solve_simple_puzzle() {
+    let initial_state = vec![vec![1, 0], vec![3, 2]];
+    let board = Board::new(initial_state);
+    let solver = AStarSolver::new(board.clone());
+    let solution = solver.solve(None);
+    assert!(solution.is_some(), "Should find a solution");
+}
+
+#[test]
+fn test_solution_validity() {
+    let initial_state = vec![vec![1, 0], vec![2, 3]];
+    let board = Board::new(initial_state);
+    let solver = AStarSolver::new(board.clone());
+    let solution = solver.solve(None).unwrap();
+    
+    // Verify solution reaches goal state
+    let mut test_board = board;
+    for move_dir in solution.moves {
+        assert!(test_board.make_move(move_dir).is_ok());
+    }
+    assert!(test_board.is_goal());
+}
+\end{lstlisting}
+
+\section{Display Implementation}
+The Board struct implements the Display trait for visualization:
+\begin{itemize}
+    \item ASCII box drawing characters for borders
+    \item Clear representation of the blank tile
+    \item Aligned grid format for readability
+\end{itemize}
+
+Example output:
+\begin{verbatim}
++---+---+---+
+| 1 | 2 | 3 |
++---+---+---+
+| 4 | _ | 6 |
++---+---+---+
+| 7 | 5 | 8 |
++---+---+---+
+\end{verbatim}
+
+\section{Conclusion}
+The implementation provides a comprehensive solution to the Taquin puzzle problem, offering three different search strategies. The A* algorithm provides the most efficient balance between optimality and performance, while BFS and DFS offer alternative approaches with different trade-offs in terms of memory usage and solution quality. The codebase emphasizes performance through efficient data structures, comprehensive testing, and clear visualization capabilities.
+
+\end{document}
