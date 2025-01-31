@@ -115,7 +115,11 @@ impl Board {
 
         moves
     }
-
+    pub fn get_row(&self, row: usize) -> Vec<u8> {
+        let start = row * self.size;
+        let end = start + self.size;
+        self.state[start..end].to_vec()
+    }
     pub fn make_move(&mut self, dir: Direction) -> Result<(), String> {
         let row = self.blank_pos / self.size;
         let col = self.blank_pos % self.size;
