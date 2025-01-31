@@ -3,10 +3,11 @@ use crate::{SolutionInfo, Solver};
 use colored::*;
 use std::collections::{HashSet, VecDeque};
 
-// State struct for BFS (now using stack)
+// State struct for BFS
 #[derive(Clone)]
 struct State {
     state: Vec<u8>,
+    goal_state: Vec<u8>,
     blank_pos: usize,
     size: usize,
     path: Vec<Direction>,
@@ -18,25 +19,29 @@ impl State {
         for pos in 0..self.state.len() {
             let value = self.state[pos];
             if value != 0 {
-                let current_row = pos / self.size;
-                let current_col = pos % self.size;
-                let expected_row = ((value - 1) / self.size as u8) as usize;
-                let expected_col = ((value - 1) % self.size as u8) as usize;
-                distance += (current_row.abs_diff(expected_row)
-                    + current_col.abs_diff(expected_col)) as u32;
+                if let Some(goal_pos) = self.goal_state.iter().position(|&x| x == value) {
+                    let current_row = pos / self.size;
+                    let current_col = pos % self.size;
+                    let goal_row = goal_pos / self.size;
+                    let goal_col = goal_pos % self.size;
+                    distance +=
+                        (current_row.abs_diff(goal_row) + current_col.abs_diff(goal_col)) as u32;
+                }
             }
         }
         distance
     }
 
     fn new(board: &Board) -> Self {
-        let state = board
+        let state: Vec<u8> = board
             .get_state()
             .into_iter()
             .flat_map(|row| row.into_iter())
             .collect();
+        let goal_state = board.get_goal_state();
         State {
             state,
+            goal_state,
             blank_pos: 0, // Will be set in initialization
             size: board.get_size(),
             path: Vec::new(),
@@ -44,18 +49,7 @@ impl State {
     }
 
     fn is_goal(&self) -> bool {
-        let mut expected = 1u8;
-        for i in 0..self.state.len() {
-            if i == self.state.len() - 1 {
-                if self.state[i] != 0 {
-                    return false;
-                }
-            } else if self.state[i] != expected {
-                return false;
-            }
-            expected += 1;
-        }
-        true
+        self.state == self.goal_state
     }
 
     fn get_possible_moves(&self) -> Vec<Direction> {
@@ -99,6 +93,7 @@ impl State {
 
         Some(State {
             state: new_state,
+            goal_state: self.goal_state.clone(),
             blank_pos: new_pos,
             size: self.size,
             path: new_path,
@@ -111,18 +106,10 @@ pub struct BFSSolver {
 }
 
 impl BFSSolver {
-    pub fn new(initial: Board) -> Self {
-        BFSSolver {
-            initial_board: initial,
-        }
-    }
-
     fn find_blank_pos(state: &[u8]) -> usize {
-        state.iter().position(|&x| x == 0).unwrap_or(0) // Should never happen with valid input
+        state.iter().position(|&x| x == 0).unwrap_or(0)
     }
-}
 
-impl BFSSolver {
     fn debug_print(
         current: &State,
         moves: &[(Direction, State, &str, String)],
@@ -150,7 +137,7 @@ impl BFSSolver {
         println!("{}", "└───┴───┴───┘".cyan());
 
         println!("\nPossible moves at this level:");
-        for (dir, new_state, quality, reason) in moves {
+        for (dir, _new_state, quality, reason) in moves {
             let move_str = match dir {
                 Direction::Up => "Up   ",
                 Direction::Down => "Down ",
@@ -199,13 +186,39 @@ impl BFSSolver {
 }
 
 impl Solver for BFSSolver {
+    fn new(initial: Board) -> Self {
+        BFSSolver {
+            initial_board: initial,
+        }
+    }
+
+    fn new_with_goal(initial: Board) -> Self {
+        BFSSolver {
+            initial_board: initial,
+        }
+    }
+
     fn solve(&self, optimal_length: Option<usize>) -> Option<SolutionInfo> {
         let mut queue = VecDeque::new();
         let mut visited = HashSet::new();
 
         // Initialize start state
-        let mut initial_state = State::new(&self.initial_board);
-        initial_state.blank_pos = Self::find_blank_pos(&initial_state.state);
+        let state: Vec<u8> = self
+            .initial_board
+            .get_state()
+            .into_iter()
+            .flat_map(|row| row.into_iter())
+            .collect();
+        let goal_state = self.initial_board.get_goal_state();
+
+        let mut initial_state = State {
+            state: state.clone(),
+            goal_state,
+            blank_pos: Self::find_blank_pos(&state),
+            size: self.initial_board.get_size(),
+            path: Vec::new(),
+        };
+
         queue.push_back((initial_state, 0)); // (state, level)
         visited.insert(
             self.initial_board
@@ -257,7 +270,7 @@ impl Solver for BFSSolver {
             }
 
             // Queue next states for BFS exploration
-            for (direction, new_state, quality, _) in possible_moves {
+            for (_direction, new_state, quality, _) in possible_moves {
                 if quality != "BAD" && !visited.contains(&new_state.state) {
                     visited.insert(new_state.state.clone());
                     queue.push_back((new_state, level + 1));

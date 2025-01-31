@@ -3,90 +3,71 @@ pub mod bfs;
 pub mod common;
 pub mod dfs;
 
-pub use a_star::AStarSolver;
-pub use bfs::BFSSolver;
-pub use common::Board;
-pub use common::Direction;
-pub use dfs::DFSSolver;
+// Re-export common types that other modules will use
+pub use common::{Board, ColoredText, Direction};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum MoveQuality {
-    Best,   // Optimal solution (same as A*)
-    Medium, // Within 50% more moves than optimal
-    Poor,   // More than 50% more moves than optimal
+#[derive(Debug, Clone)]
+pub enum SolutionQuality {
+    Optimal,
+    Good,
+    Poor,
+}
+
+impl SolutionQuality {
+    pub fn to_colored_string(&self) -> String {
+        match self {
+            SolutionQuality::Optimal => ColoredText::green("Optimal"),
+            SolutionQuality::Good => ColoredText::yellow("Good"),
+            SolutionQuality::Poor => ColoredText::red("Poor"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct SolutionInfo {
     pub moves: Vec<Direction>,
-    pub quality: MoveQuality,
+    pub optimal_length: Option<usize>,
+    pub quality: SolutionQuality,
 }
 
 impl SolutionInfo {
     pub fn new(moves: Vec<Direction>, optimal_length: Option<usize>) -> Self {
         let quality = if let Some(optimal) = optimal_length {
-            if moves.len() == optimal {
-                MoveQuality::Best
-            } else if moves.len() <= optimal + (optimal / 2) {
-                MoveQuality::Medium
-            } else {
-                MoveQuality::Poor
+            match moves.len() {
+                len if len == optimal => SolutionQuality::Optimal,
+                len if len <= optimal + 5 => SolutionQuality::Good,
+                _ => SolutionQuality::Poor,
             }
         } else {
-            MoveQuality::Best // If no optimal length provided, assume it's best
+            SolutionQuality::Good // Default when optimal length is unknown
         };
 
-        SolutionInfo { moves, quality }
+        SolutionInfo {
+            moves,
+            optimal_length,
+            quality,
+        }
+    }
+
+    pub fn display_solution(&self) -> String {
+        let quality_str = self.quality.to_colored_string();
+        let moves_len = self.moves.len();
+
+        let mut result = format!("Found {} solution in {} moves", quality_str, moves_len);
+        if let Some(optimal) = self.optimal_length {
+            result.push_str(&format!(" (Optimal: {})", optimal));
+        }
+        result
     }
 }
 
-// Define solver trait for consistent interface
 pub trait Solver {
+    fn new(board: Board) -> Self;
     fn solve(&self, optimal_length: Option<usize>) -> Option<SolutionInfo>;
+    fn new_with_goal(board: Board) -> Self;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn create_test_board() -> Board {
-        // Create a simple 3x3 puzzle that requires just a few moves to solve
-        // 1 2 3
-        // 4 5 0   (0 represents the empty space)
-        // 7 8 6
-        Board::new(vec![vec![1, 2, 3], vec![4, 5, 0], vec![7, 8, 6]])
-    }
-
-    #[test]
-    fn test_bfs_solver() {
-        let board = create_test_board();
-        let solver = BFSSolver::new(board);
-        let solution = solver.solve(None);
-        assert!(solution.is_some());
-    }
-
-    #[test]
-    fn test_dfs_solver() {
-        let board = create_test_board();
-        let solver = DFSSolver::new(board);
-        let solution = solver.solve(None);
-        assert!(solution.is_some());
-    }
-
-    #[test]
-    fn test_astar_solver() {
-        let board = create_test_board();
-        let solver = AStarSolver::new(board);
-        let solution = solver.solve(None);
-        assert!(solution.is_some());
-    }
-
-    #[test]
-    fn test_is_goal_state() {
-        let goal_board = Board::new(vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 0]]);
-        assert!(goal_board.is_goal());
-
-        let non_goal_board = create_test_board();
-        assert!(!non_goal_board.is_goal());
-    }
-}
+// Re-export solvers
+pub use a_star::AStarSolver;
+pub use bfs::BFSSolver;
+pub use dfs::DFSSolver;

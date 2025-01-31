@@ -6,6 +6,7 @@ use std::collections::HashSet;
 #[derive(Clone)]
 struct State {
     state: Vec<u8>,
+    goal_state: Vec<u8>,
     blank_pos: usize,
     size: usize,
     path: Vec<Direction>,
@@ -13,13 +14,15 @@ struct State {
 
 impl State {
     fn new(board: &Board) -> Self {
-        let state = board
+        let state: Vec<u8> = board
             .get_state()
             .into_iter()
             .flat_map(|row| row.into_iter())
             .collect();
+        let goal_state = board.get_goal_state();
         State {
             state,
+            goal_state,
             blank_pos: 0, // Will be set in initialization
             size: board.get_size(),
             path: Vec::new(),
@@ -27,18 +30,7 @@ impl State {
     }
 
     fn is_goal(&self) -> bool {
-        let mut expected = 1u8;
-        for i in 0..self.state.len() {
-            if i == self.state.len() - 1 {
-                if self.state[i] != 0 {
-                    return false;
-                }
-            } else if self.state[i] != expected {
-                return false;
-            }
-            expected += 1;
-        }
-        true
+        self.state == self.goal_state
     }
 
     fn get_possible_moves(&self) -> Vec<Direction> {
@@ -82,6 +74,7 @@ impl State {
 
         Some(State {
             state: new_state,
+            goal_state: self.goal_state.clone(),
             blank_pos: new_pos,
             size: self.size,
             path: new_path,
@@ -94,25 +87,45 @@ pub struct DFSSolver {
 }
 
 impl DFSSolver {
-    pub fn new(initial: Board) -> Self {
-        DFSSolver {
-            initial_board: initial,
-        }
-    }
-
     fn find_blank_pos(state: &[u8]) -> usize {
         state.iter().position(|&x| x == 0).unwrap_or(0) // Should never happen with valid input
     }
 }
 
 impl Solver for DFSSolver {
+    fn new(initial: Board) -> Self {
+        DFSSolver {
+            initial_board: initial,
+        }
+    }
+
+    fn new_with_goal(initial: Board) -> Self {
+        DFSSolver {
+            initial_board: initial,
+        }
+    }
+
     fn solve(&self, optimal_length: Option<usize>) -> Option<SolutionInfo> {
         let mut stack = Vec::new();
         let mut visited = HashSet::new();
 
         // Initialize start state
-        let mut initial_state = State::new(&self.initial_board);
-        initial_state.blank_pos = Self::find_blank_pos(&initial_state.state);
+        let state: Vec<u8> = self
+            .initial_board
+            .get_state()
+            .into_iter()
+            .flat_map(|row| row.into_iter())
+            .collect();
+        let goal_state = self.initial_board.get_goal_state();
+
+        let mut initial_state = State {
+            state: state.clone(),
+            goal_state,
+            blank_pos: Self::find_blank_pos(&state),
+            size: self.initial_board.get_size(),
+            path: Vec::new(),
+        };
+
         stack.push(initial_state);
         visited.insert(
             self.initial_board

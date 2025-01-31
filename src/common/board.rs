@@ -11,12 +11,13 @@ pub enum Direction {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Board {
     state: Vec<u8>,
+    goal_state: Vec<u8>,
     blank_pos: usize,
     size: usize,
 }
 
 impl Board {
-    pub fn new(initial_state: Vec<Vec<u8>>) -> Self {
+    pub fn new(initial_state: Vec<Vec<i32>>) -> Self {
         let size = initial_state.len();
         let mut state = Vec::with_capacity(size * size);
         let mut blank_pos = 0;
@@ -24,7 +25,7 @@ impl Board {
         // Convert 2D state to 1D and find blank position
         for i in 0..size {
             for j in 0..size {
-                let value = initial_state[i][j];
+                let value = initial_state[i][j] as u8;
                 if value == 0 {
                     blank_pos = i * size + j;
                 }
@@ -32,8 +33,39 @@ impl Board {
             }
         }
 
+        // Default goal state: 1,2,3,4,5,6,7,8,0
+        let mut goal_state = (1..=(size * size) as u8).collect::<Vec<u8>>();
+        goal_state[(size * size) - 1] = 0;
+
         Board {
             state,
+            goal_state,
+            blank_pos,
+            size,
+        }
+    }
+
+    pub fn new_with_goal(initial_state: Vec<Vec<i32>>, goal_state: Vec<Vec<i32>>) -> Self {
+        let size = initial_state.len();
+        let mut state = Vec::with_capacity(size * size);
+        let mut goal = Vec::with_capacity(size * size);
+        let mut blank_pos = 0;
+
+        // Convert 2D states to 1D
+        for i in 0..size {
+            for j in 0..size {
+                let value = initial_state[i][j] as u8;
+                if value == 0 {
+                    blank_pos = i * size + j;
+                }
+                state.push(value);
+                goal.push(goal_state[i][j] as u8);
+            }
+        }
+
+        Board {
+            state,
+            goal_state: goal,
             blank_pos,
             size,
         }
@@ -51,23 +83,16 @@ impl Board {
         result
     }
 
+    pub fn get_goal_state(&self) -> Vec<u8> {
+        self.goal_state.clone()
+    }
+
     pub fn get_size(&self) -> usize {
         self.size
     }
 
     pub fn is_goal(&self) -> bool {
-        let mut expected = 1u8;
-        for i in 0..self.state.len() {
-            if i == self.state.len() - 1 {
-                if self.state[i] != 0 {
-                    return false;
-                }
-            } else if self.state[i] != expected {
-                return false;
-            }
-            expected += 1;
-        }
-        true
+        self.state == self.goal_state
     }
 
     pub fn get_possible_moves(&self) -> Vec<Direction> {
@@ -114,12 +139,15 @@ impl Board {
         for pos in 0..self.state.len() {
             let value = self.state[pos];
             if value != 0 {
-                let current_row = pos / self.size;
-                let current_col = pos % self.size;
-                let expected_row = ((value - 1) / self.size as u8) as usize;
-                let expected_col = ((value - 1) % self.size as u8) as usize;
-                distance += (current_row.abs_diff(expected_row)
-                    + current_col.abs_diff(expected_col)) as u32;
+                // Find position of this value in goal state
+                if let Some(goal_pos) = self.goal_state.iter().position(|&x| x == value) {
+                    let current_row = pos / self.size;
+                    let current_col = pos % self.size;
+                    let goal_row = goal_pos / self.size;
+                    let goal_col = goal_pos % self.size;
+                    distance +=
+                        (current_row.abs_diff(goal_row) + current_col.abs_diff(goal_col)) as u32;
+                }
             }
         }
         distance
@@ -128,7 +156,17 @@ impl Board {
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "┌───┬───┬───┐")?;
+        // Top border
+        write!(f, "┌")?;
+        for i in 0..self.size {
+            write!(f, "───")?;
+            if i < self.size - 1 {
+                write!(f, "┬")?;
+            }
+        }
+        writeln!(f, "┐")?;
+
+        // Board content
         for row in 0..self.size {
             write!(f, "│")?;
             for col in 0..self.size {
@@ -140,10 +178,28 @@ impl fmt::Display for Board {
                 }
             }
             writeln!(f)?;
+
+            // Middle borders
             if row < self.size - 1 {
-                writeln!(f, "├───┼───┼───┤")?;
+                write!(f, "├")?;
+                for i in 0..self.size {
+                    write!(f, "───")?;
+                    if i < self.size - 1 {
+                        write!(f, "┼")?;
+                    }
+                }
+                writeln!(f, "┤")?;
             }
         }
-        writeln!(f, "└───┴───┴───┘")
+
+        // Bottom border
+        write!(f, "└")?;
+        for i in 0..self.size {
+            write!(f, "───")?;
+            if i < self.size - 1 {
+                write!(f, "┴")?;
+            }
+        }
+        writeln!(f, "┘")
     }
 }

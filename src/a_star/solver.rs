@@ -6,6 +6,7 @@ use std::collections::{BinaryHeap, HashSet};
 #[derive(Clone, Eq)]
 struct State {
     state: Vec<u8>,
+    goal_state: Vec<u8>,
     blank_pos: usize,
     size: usize,
     path: Vec<Direction>,
@@ -15,18 +16,22 @@ struct State {
 
 impl State {
     fn new(board: &Board) -> Self {
-        let state = board
+        let state: Vec<u8> = board
             .get_state()
             .into_iter()
             .flat_map(|row| row.into_iter())
             .collect();
+        let goal_state = board.get_goal_state();
+        let size = board.get_size();
+        let h_cost = AStarSolver::manhattan_distance(&state, &goal_state, size);
         State {
             state,
+            goal_state,
             blank_pos: 0, // Will be set in initialization
-            size: board.get_size(),
+            size,
             path: Vec::new(),
             g_cost: 0,
-            h_cost: board.manhattan_distance(),
+            h_cost,
         }
     }
 
@@ -60,18 +65,7 @@ impl PartialEq for State {
 
 impl State {
     fn is_goal(&self) -> bool {
-        let mut expected = 1u8;
-        for i in 0..self.state.len() {
-            if i == self.state.len() - 1 {
-                if self.state[i] != 0 {
-                    return false;
-                }
-            } else if self.state[i] != expected {
-                return false;
-            }
-            expected += 1;
-        }
-        true
+        self.state == self.goal_state
     }
 
     fn get_possible_moves(&self) -> Vec<Direction> {
@@ -113,10 +107,11 @@ impl State {
         let mut new_path = self.path.clone();
         new_path.push(dir);
 
-        let new_h_cost = AStarSolver::manhattan_distance(&new_state, self.size);
+        let new_h_cost = AStarSolver::manhattan_distance(&new_state, &self.goal_state, self.size);
 
         Some(State {
             state: new_state,
+            goal_state: self.goal_state.clone(),
             blank_pos: new_pos,
             size: self.size,
             path: new_path,
@@ -131,27 +126,23 @@ pub struct AStarSolver {
 }
 
 impl AStarSolver {
-    pub fn new(initial: Board) -> Self {
-        AStarSolver {
-            initial_board: initial,
-        }
-    }
-
     fn find_blank_pos(state: &[u8]) -> usize {
         state.iter().position(|&x| x == 0).unwrap_or(0)
     }
 
-    fn manhattan_distance(state: &[u8], size: usize) -> u32 {
+    fn manhattan_distance(state: &[u8], goal_state: &[u8], size: usize) -> u32 {
         let mut distance = 0;
         for pos in 0..state.len() {
             let value = state[pos];
             if value != 0 {
-                let current_row = pos / size;
-                let current_col = pos % size;
-                let expected_row = ((value - 1) / size as u8) as usize;
-                let expected_col = ((value - 1) % size as u8) as usize;
-                distance += (current_row.abs_diff(expected_row)
-                    + current_col.abs_diff(expected_col)) as u32;
+                if let Some(goal_pos) = goal_state.iter().position(|&x| x == value) {
+                    let current_row = pos / size;
+                    let current_col = pos % size;
+                    let goal_row = goal_pos / size;
+                    let goal_col = goal_pos % size;
+                    distance +=
+                        (current_row.abs_diff(goal_row) + current_col.abs_diff(goal_col)) as u32;
+                }
             }
         }
         distance
@@ -159,9 +150,37 @@ impl AStarSolver {
 }
 
 impl Solver for AStarSolver {
+    fn new(initial: Board) -> Self {
+        AStarSolver {
+            initial_board: initial,
+        }
+    }
+
+    fn new_with_goal(initial: Board) -> Self {
+        AStarSolver {
+            initial_board: initial,
+        }
+    }
+
     fn solve(&self, _optimal_length: Option<usize>) -> Option<SolutionInfo> {
-        let mut initial_state = State::new(&self.initial_board);
-        initial_state.blank_pos = Self::find_blank_pos(&initial_state.state);
+        // Initialize start state
+        let state: Vec<u8> = self
+            .initial_board
+            .get_state()
+            .into_iter()
+            .flat_map(|row| row.into_iter())
+            .collect();
+        let goal_state = self.initial_board.get_goal_state();
+
+        let mut initial_state = State {
+            state: state.clone(),
+            goal_state: goal_state.clone(),
+            blank_pos: Self::find_blank_pos(&state),
+            size: self.initial_board.get_size(),
+            path: Vec::new(),
+            g_cost: 0,
+            h_cost: Self::manhattan_distance(&state, &goal_state, self.initial_board.get_size()),
+        };
 
         let mut open_set = BinaryHeap::new();
         let mut closed_set = HashSet::new();
