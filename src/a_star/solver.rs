@@ -172,7 +172,7 @@ impl Solver for AStarSolver {
             .collect();
         let goal_state = self.initial_board.get_goal_state();
 
-        let mut initial_state = State {
+        let initial_state = State {
             state: state.clone(),
             goal_state: goal_state.clone(),
             blank_pos: Self::find_blank_pos(&state),

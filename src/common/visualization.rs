@@ -1,5 +1,6 @@
+use colored::*;
 use std::fs::File;
-use std::io::{self, Write};
+use std::io::{self, Error, Write};
 use std::time::Duration;
 
 use crate::{Board, SolutionInfo};
@@ -18,21 +19,49 @@ pub fn clear_screen() {
 
 pub fn print_side_by_side(states: &[&MethodState], step: usize) {
     clear_screen();
+    println!(
+        "{}\n",
+        "=== N-Puzzle Solver Visualization ===".blue().bold()
+    );
 
     let methods = ["DFS", "BFS", "A*"];
-    let separator = "  |  ";
+    let separator = "║".bright_cyan();
+    let double_separator = "╦".bright_cyan();
 
-    // Print headers
+    // Colorful header with borders
+    let header_border = "═══════════════════".bright_cyan();
+    print!("{}", "╔".bright_cyan());
+    for i in 0..methods.len() {
+        print!("{}", header_border);
+        if i < methods.len() - 1 {
+            print!("{}", double_separator);
+        }
+    }
+    println!("{}", "╗".bright_cyan());
+
+    // Print method names
+    print!("{}", separator);
     for (i, method) in methods.iter().enumerate() {
-        print!("{:^20}", method);
+        print!("{:^19}", method.yellow());
         if i < methods.len() - 1 {
             print!("{}", separator);
         }
     }
-    println!("\n{}", "─".repeat(70));
+    println!("{}", separator);
 
-    // Print current state for each method
+    // Top separator
+    print!("{}", "╠".bright_cyan());
+    for i in 0..methods.len() {
+        print!("{}", "═".repeat(19).bright_cyan());
+        if i < methods.len() - 1 {
+            print!("{}", "╬".bright_cyan());
+        }
+    }
+    println!("{}", "╣".bright_cyan());
+
+    // Print puzzle state
     for i in 0..3 {
+        print!("{}", separator);
         for (j, state) in states.iter().enumerate() {
             let board_str = if let Some(ref solution) = state.solution {
                 if step < solution.moves.len() {
@@ -41,124 +70,140 @@ pub fn print_side_by_side(states: &[&MethodState], step: usize) {
                         board.make_move(solution.moves[k].clone()).unwrap();
                     }
                     let row = board.get_row(i);
-                    // Format row with empty tile as '_'
-                    format!(
-                        "{:>2} {:>2} {:>2}",
-                        if row[0] == 0 {
-                            "_".to_string()
-                        } else {
-                            row[0].to_string()
-                        },
-                        if row[1] == 0 {
-                            "_".to_string()
-                        } else {
-                            row[1].to_string()
-                        },
-                        if row[2] == 0 {
-                            "_".to_string()
-                        } else {
-                            row[2].to_string()
-                        }
-                    )
+                    let nums: Vec<String> = row
+                        .iter()
+                        .map(|&n| {
+                            if n == 0 {
+                                "_".red().to_string()
+                            } else {
+                                n.to_string().green().to_string()
+                            }
+                        })
+                        .collect();
+                    format!("{:>2} {:>2} {:>2}", nums[0], nums[1], nums[2])
                 } else {
-                    "  [Complete]  ".to_string()
+                    "[Complete]".bright_blue().to_string()
                 }
             } else {
-                "  [No solution]  ".to_string()
+                "[No Solution]".bright_red().to_string()
             };
-
-            print!("{:^20}", board_str);
+            print!("{:^19}", board_str);
             if j < states.len() - 1 {
                 print!("{}", separator);
             }
         }
-        println!();
+        println!("{}", separator);
     }
 
-    // Print current move for each method
+    // Middle separator
+    print!("{}", "╠".bright_cyan());
+    for i in 0..methods.len() {
+        print!("{}", "═".repeat(19).bright_cyan());
+        if i < methods.len() - 1 {
+            print!("{}", "╬".bright_cyan());
+        }
+    }
+    println!("{}", "╣".bright_cyan());
+
+    // Print current moves
+    print!("{}", separator);
     for (j, state) in states.iter().enumerate() {
         let move_str = if let Some(ref solution) = state.solution {
             if step < solution.moves.len() {
-                format!("Move: {:?}", solution.moves[step])
+                format!("Move: {:?}", solution.moves[step]).magenta()
             } else {
-                format!("Steps: {}", solution.moves.len())
+                format!("Total Steps: {}", solution.moves.len()).bright_blue()
             }
         } else {
-            "No solution".to_string()
+            "No solution".bright_red()
         };
-
-        print!("{:^20}", move_str);
+        print!("{:^19}", move_str);
         if j < states.len() - 1 {
             print!("{}", separator);
         }
     }
-    println!();
+    println!("{}", separator);
+
+    // Bottom separator
+    print!("{}", "╠".bright_cyan());
+    for i in 0..methods.len() {
+        print!("{}", "═".repeat(19).bright_cyan());
+        if i < methods.len() - 1 {
+            print!("{}", "╬".bright_cyan());
+        }
+    }
+    println!("{}", "╣".bright_cyan());
 
     // Print stats
-    println!("\nStats:");
+    print!("{}", separator);
     for (j, state) in states.iter().enumerate() {
         let stats = if let Some(ref solution) = state.solution {
-            format!("Time: {:?}", state.time_taken)
+            format!("Time: {:?}", state.time_taken).yellow()
         } else {
-            "Failed".to_string()
+            "Failed".bright_red()
         };
-
-        print!("{:^20}", stats);
+        print!("{:^19}", stats);
         if j < states.len() - 1 {
             print!("{}", separator);
         }
     }
-    println!();
+    println!("{}", separator);
+
+    // Final border
+    print!("{}", "╚".bright_cyan());
+    for i in 0..methods.len() {
+        print!("{}", "═".repeat(19).bright_cyan());
+        if i < methods.len() - 1 {
+            print!("{}", "╩".bright_cyan());
+        }
+    }
+    println!("{}", "╝".bright_cyan());
 
     io::stdout().flush().unwrap();
 }
 
 pub fn write_results_to_file(states: &[&MethodState]) -> io::Result<()> {
-    let mut file = File::create("results.txt")?;
+    let mut file = File::create("results.md")?;
     let methods = ["DFS", "BFS", "A*"];
 
-    // Write header
-    for (i, method) in methods.iter().enumerate() {
-        write!(file, "{:^20}", method)?;
-        if i < methods.len() - 1 {
-            write!(file, "  |  ")?;
-        }
-    }
-    writeln!(file)?;
-    writeln!(file, "{}", "─".repeat(70))?;
+    // Write header with proper markdown table formatting
+    writeln!(
+        file,
+        "| {:<18} | {:<18} | {:<18} |",
+        methods[0], methods[1], methods[2]
+    )?;
+    writeln!(file, "|:{:-<18}:|:{:-<18}:|:{:-<18}:|", "", "", "")?;
 
-    // Write initial state
-    writeln!(file, "\nInitial State:")?;
+    // Write initial state with better formatting
+    writeln!(file, "\n### Initial State\n")?;
+    writeln!(file, "|---|---|---|")?;
     for i in 0..3 {
-        for (j, state) in states.iter().enumerate() {
+        let mut row_str = String::new();
+        for state in states.iter() {
             let row = state.board.get_row(i);
-            let row_str = format!(
-                "{:>2} {:>2} {:>2}",
-                if row[0] == 0 {
-                    "_".to_string()
-                } else {
-                    row[0].to_string()
-                },
-                if row[1] == 0 {
-                    "_".to_string()
-                } else {
-                    row[1].to_string()
-                },
-                if row[2] == 0 {
-                    "_".to_string()
-                } else {
-                    row[2].to_string()
-                }
-            );
-            write!(file, "{:^20}", row_str)?;
-            if j < states.len() - 1 {
-                write!(file, "  |  ")?;
-            }
+            let val0 = if row[0] == 0 {
+                "_"
+            } else {
+                &row[0].to_string()
+            };
+            let val1 = if row[1] == 0 {
+                "_"
+            } else {
+                &row[1].to_string()
+            };
+            let val2 = if row[2] == 0 {
+                "_"
+            } else {
+                &row[2].to_string()
+            };
+            let cells = format!("| {} {} {} |", val0, val1, val2);
+            row_str.push_str(&cells);
         }
-        writeln!(file)?;
+        writeln!(file, "{}", row_str)?;
     }
+    writeln!(file, "|---|---|---|")?;
 
-    // Write solution steps
+    // Write solution steps with better formatting
     let max_steps = states
         .iter()
         .filter_map(|s| s.solution.as_ref())
@@ -167,85 +212,92 @@ pub fn write_results_to_file(states: &[&MethodState]) -> io::Result<()> {
         .unwrap_or(0);
 
     for step in 0..max_steps {
-        writeln!(file, "\nStep {}:", step + 1)?;
+        writeln!(file, "\n### Step {}\n", step + 1)?;
+        writeln!(file, "|---|---|---|")?;
         for i in 0..3 {
-            for (j, state) in states.iter().enumerate() {
-                let board_str = if let Some(ref solution) = state.solution {
+            let mut row_str = String::new();
+            for state in states.iter() {
+                if let Some(ref solution) = state.solution {
                     if step < solution.moves.len() {
                         let mut board = state.board.clone();
                         for k in 0..=step {
                             board.make_move(solution.moves[k].clone()).unwrap();
                         }
                         let row = board.get_row(i);
-                        format!(
-                            "{:>2} {:>2} {:>2}",
-                            if row[0] == 0 {
-                                "_".to_string()
-                            } else {
-                                row[0].to_string()
-                            },
-                            if row[1] == 0 {
-                                "_".to_string()
-                            } else {
-                                row[1].to_string()
-                            },
-                            if row[2] == 0 {
-                                "_".to_string()
-                            } else {
-                                row[2].to_string()
-                            }
-                        )
+                        let val0 = if row[0] == 0 {
+                            "_"
+                        } else {
+                            &row[0].to_string()
+                        };
+                        let val1 = if row[1] == 0 {
+                            "_"
+                        } else {
+                            &row[1].to_string()
+                        };
+                        let val2 = if row[2] == 0 {
+                            "_"
+                        } else {
+                            &row[2].to_string()
+                        };
+                        let cells = format!("| {} {} {} |", val0, val1, val2);
+                        row_str.push_str(&cells);
                     } else {
-                        "[Complete]".to_string()
+                        row_str.push_str("| [Complete] |");
                     }
                 } else {
-                    "[No solution]".to_string()
-                };
-                write!(file, "{:^20}", board_str)?;
-                if j < states.len() - 1 {
-                    write!(file, "  |  ")?;
+                    row_str.push_str("| [No solution] |");
                 }
             }
-            writeln!(file)?;
+            writeln!(file, "{}", row_str)?;
         }
+        writeln!(file, "|---|---|---|")?;
 
         // Write moves for this step
-        for (j, state) in states.iter().enumerate() {
-            let move_str = if let Some(ref solution) = state.solution {
+        let mut move_str = String::new();
+        for state in states.iter() {
+            let move_text = if let Some(ref solution) = state.solution {
                 if step < solution.moves.len() {
-                    format!("Move: {:?}", solution.moves[step])
+                    format!("| Move: {:?} |", solution.moves[step])
                 } else {
-                    "Complete".to_string()
+                    "| Complete |".to_string()
                 }
             } else {
-                "No solution".to_string()
+                "| No solution |".to_string()
             };
-            write!(file, "{:^20}", move_str)?;
-            if j < states.len() - 1 {
-                write!(file, "  |  ")?;
-            }
+            move_str.push_str(&move_text);
         }
-        writeln!(file)?;
+        writeln!(file, "{}", move_str)?;
     }
 
-    // Write final stats
-    writeln!(file, "\nFinal Stats:")?;
-    for (j, state) in states.iter().enumerate() {
-        let stats = if let Some(ref solution) = state.solution {
-            format!(
-                "Steps: {}\nTime: {:?}",
-                solution.moves.len(),
-                state.time_taken
-            )
-        } else {
-            "Failed".to_string()
-        };
-        write!(file, "{:^20}", stats)?;
-        if j < states.len() - 1 {
-            write!(file, "  |  ")?;
-        }
-    }
-    writeln!(file)?;
+    // Write final stats with better formatting
+    writeln!(file, "\n### Final Stats\n")?;
+    writeln!(file, "| Metric | DFS | BFS | A* |")?;
+    writeln!(file, "|:--|:--|:--|:--|")?;
+
+    // Write steps
+    let steps_str = format!(
+        "| Steps | {} | {} | {} |",
+        states[0]
+            .solution
+            .as_ref()
+            .map_or("Failed".to_string(), |s| s.moves.len().to_string()),
+        states[1]
+            .solution
+            .as_ref()
+            .map_or("Failed".to_string(), |s| s.moves.len().to_string()),
+        states[2]
+            .solution
+            .as_ref()
+            .map_or("Failed".to_string(), |s| s.moves.len().to_string())
+    );
+    writeln!(file, "{}", steps_str)?;
+
+    // Write time
+    let time_str = format!(
+        "| Time | {:?} | {:?} | {:?} |",
+        states[0].time_taken, states[1].time_taken, states[2].time_taken
+    );
+    writeln!(file, "{}", time_str)?;
 
     Ok(())
 }

@@ -1,3 +1,4 @@
+use serde_json::Value;
 use std::fs;
 use std::io::{self, Write};
 use std::thread;
@@ -8,8 +9,8 @@ use taquin::{AStarSolver, BFSSolver, Board, DFSSolver, Solver};
 
 fn load_board_from_file(path: &str) -> Board {
     let content = fs::read_to_string(path).expect("Failed to read config file");
-    let board_state: Vec<Vec<i32>> = serde_json::from_str(&content)
-        .expect("Failed to parse JSON")
+    let json: Value = serde_json::from_str(&content).expect("Failed to parse JSON");
+    let board_state: Vec<Vec<i32>> = json
         .get("board")
         .expect("Missing board field")
         .as_array()
@@ -27,7 +28,7 @@ fn load_board_from_file(path: &str) -> Board {
     Board::new(board_state)
 }
 
-fn solve_puzzle(initial_board: Board, goal_board: Board) -> io::Result<()> {
+fn solve_puzzle(initial_board: Board, _goal_board: Board) -> io::Result<()> {
     let config = Config {
         iteration_delay: Duration::from_millis(200), // Fast speed
     };
@@ -51,7 +52,7 @@ fn solve_puzzle(initial_board: Board, goal_board: Board) -> io::Result<()> {
     let astar_time = start.elapsed();
 
     // Create method states
-    let mut method_states = vec![
+    let method_states = vec![
         MethodState {
             board: initial_board.clone(),
             current_step: 0,
@@ -89,7 +90,7 @@ fn solve_puzzle(initial_board: Board, goal_board: Board) -> io::Result<()> {
     // Write final results to file
     write_results_to_file(&method_states.iter().collect::<Vec<_>>())?;
 
-    println!("\nResults have been written to results.txt");
+    println!("\nResults have been written to results.md");
     Ok(())
 }
 

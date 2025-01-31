@@ -118,7 +118,7 @@ impl Solver for DFSSolver {
             .collect();
         let goal_state = self.initial_board.get_goal_state();
 
-        let mut initial_state = State {
+        let initial_state = State {
             state: state.clone(),
             goal_state,
             blank_pos: Self::find_blank_pos(&state),
