@@ -26,18 +26,12 @@ pub fn print_side_by_side(states: &[&MethodState], step: usize) {
 
     let methods = ["DFS", "BFS", "A*"];
     let separator = "║".bright_cyan();
-    let double_separator = "╦".bright_cyan();
 
     // Colorful header with borders
-    let header_border = "═══════════════════".bright_cyan();
-    print!("{}", "╔".bright_cyan());
-    for i in 0..methods.len() {
-        print!("{}", header_border);
-        if i < methods.len() - 1 {
-            print!("{}", double_separator);
-        }
-    }
-    println!("{}", "╗".bright_cyan());
+    println!(
+        "{}",
+        "╔═══════════════════╦═══════════════════╦═══════════════════╗".bright_cyan()
+    );
 
     // Print method names
     print!("{}", separator);
@@ -50,15 +44,10 @@ pub fn print_side_by_side(states: &[&MethodState], step: usize) {
     println!("{}", separator);
 
     // Top separator
-    print!("{}", "╠".bright_cyan());
-    for i in 0..methods.len() {
-        print!("{}", "═".repeat(19).bright_cyan());
-        if i < methods.len() - 1 {
-            print!("{}", "╬".bright_cyan());
-        }
-    }
-    println!("{}", "╣".bright_cyan());
-
+    println!(
+        "{} ",
+        "╠═══════════════════╬═══════════════════╬═══════════════════╣".bright_cyan()
+    );
     // Print puzzle state
     for i in 0..3 {
         print!("{}", separator);
@@ -80,14 +69,14 @@ pub fn print_side_by_side(states: &[&MethodState], step: usize) {
                             }
                         })
                         .collect();
-                    format!("{:>2} {:>2} {:>2}", nums[0], nums[1], nums[2])
+                    format!("    {}    {}    {}    ", nums[0], nums[1], nums[2])
                 } else {
-                    "[Complete]".bright_blue().to_string()
+                    format!("{:^19}", "[Complete]".bright_blue())
                 }
             } else {
-                "[No Solution]".bright_red().to_string()
+                format!("{:^19}", "[No Solution]".bright_red())
             };
-            print!("{:^19}", board_str);
+            print!("{}", board_str);
             if j < states.len() - 1 {
                 print!("{}", separator);
             }
@@ -96,14 +85,10 @@ pub fn print_side_by_side(states: &[&MethodState], step: usize) {
     }
 
     // Middle separator
-    print!("{}", "╠".bright_cyan());
-    for i in 0..methods.len() {
-        print!("{}", "═".repeat(19).bright_cyan());
-        if i < methods.len() - 1 {
-            print!("{}", "╬".bright_cyan());
-        }
-    }
-    println!("{}", "╣".bright_cyan());
+    println!(
+        "{} ",
+        "╠═══════════════════╬═══════════════════╬═══════════════════╣".bright_cyan()
+    );
 
     // Print current moves
     print!("{}", separator);
@@ -125,15 +110,10 @@ pub fn print_side_by_side(states: &[&MethodState], step: usize) {
     println!("{}", separator);
 
     // Bottom separator
-    print!("{}", "╠".bright_cyan());
-    for i in 0..methods.len() {
-        print!("{}", "═".repeat(19).bright_cyan());
-        if i < methods.len() - 1 {
-            print!("{}", "╬".bright_cyan());
-        }
-    }
-    println!("{}", "╣".bright_cyan());
-
+    println!(
+        "{} ",
+        "╠═══════════════════╬═══════════════════╬═══════════════════╣".bright_cyan()
+    );
     // Print stats
     print!("{}", separator);
     for (j, state) in states.iter().enumerate() {
@@ -150,14 +130,10 @@ pub fn print_side_by_side(states: &[&MethodState], step: usize) {
     println!("{}", separator);
 
     // Final border
-    print!("{}", "╚".bright_cyan());
-    for i in 0..methods.len() {
-        print!("{}", "═".repeat(19).bright_cyan());
-        if i < methods.len() - 1 {
-            print!("{}", "╩".bright_cyan());
-        }
-    }
-    println!("{}", "╝".bright_cyan());
+    println!(
+        "{}",
+        "╚═══════════════════╩═══════════════════╩═══════════════════╝".bright_cyan()
+    );
 
     io::stdout().flush().unwrap();
 }
